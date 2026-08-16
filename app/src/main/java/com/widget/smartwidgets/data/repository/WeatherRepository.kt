@@ -66,9 +66,11 @@ class WeatherRepository private constructor(context: Context) {
         if (isStale || forceRefresh) {
             val apiKey = BuildConfig.WEATHER_API_KEY
             if (apiKey == "NO_API_KEY" || apiKey.isBlank()) {
-                Log.e(TAG, "Missing OpenWeather API Key in local.properties")
+                Log.e(TAG, "WeatherAPI: API key configured = false")
+                Log.e(TAG, "OPEN_WEATHER_API_KEY is missing from local.properties.")
                 return cached
             }
+            Log.d(TAG, "WeatherAPI: API key configured = true")
 
             try {
                 val response = apiCall(apiKey)
@@ -84,16 +86,23 @@ class WeatherRepository private constructor(context: Context) {
                 )
                 
                 weatherDao.insertWeather(newEntity)
-                Log.d(TAG, "Weather updated successfully for locationId: $locationId")
+                Log.d(TAG, "WeatherAPI: request successful")
+                Log.d(TAG, "WeatherAPI: temperature=${newEntity.temperature}")
+                Log.d(TAG, "WeatherAPI: city=${newEntity.displayName}")
                 return newEntity
             } catch (e: HttpException) {
-                Log.e(TAG, "HTTP error ${e.code()} when fetching weather for locationId: $locationId")
+                Log.e(TAG, "WeatherAPI: HTTP status = ${e.code()}")
+                val errorBody = e.response()?.errorBody()?.string()?.take(200) ?: "unknown"
+                Log.e(TAG, "WeatherAPI: error body = $errorBody")
                 return cached
             } catch (e: IOException) {
-                Log.e(TAG, "Network IO error when fetching weather for locationId: $locationId - ${e.message}")
+                Log.e(TAG, "WeatherAPI: network error = ${e.message}")
+                return cached
+            } catch (e: kotlinx.serialization.SerializationException) {
+                Log.e(TAG, "WeatherAPI: JSON parsing error = ${e.message}")
                 return cached
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error fetching weather for locationId: $locationId", e)
+                Log.e(TAG, "WeatherAPI: unexpected error = ${e.javaClass.simpleName}: ${e.message}")
                 return cached
             }
         }
@@ -156,7 +165,7 @@ class WeatherRepository private constructor(context: Context) {
 
         fun formatCoordinates(lat: Double, lon: Double, units: String = "metric"): String {
             val cleanUnit = sanitizeUnits(units)
-            return String.format(Locale.US, "%.2f,%.2f:%s", lat, lon, cleanUnit)
+            return String.format(Locale.US, "%.4f,%.4f:%s", lat, lon, cleanUnit)
         }
     }
 }

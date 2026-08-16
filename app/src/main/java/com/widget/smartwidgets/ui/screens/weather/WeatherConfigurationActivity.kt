@@ -87,8 +87,8 @@ class WeatherConfigurationActivity : ComponentActivity() {
                 WeatherConfigScreenContent(
                     appWidgetId = appWidgetId,
                     db = db,
-                    onSave = { mode, city, lat, lon, unit ->
-                        saveConfiguration(mode, city, lat, lon, unit)
+                    onSave = { mode, city, lat, lon, unit, onFetchFailed ->
+                        saveConfiguration(mode, city, lat, lon, unit, onFetchFailed)
                     },
                     onRequestLocation = { onResult ->
                         requestLocation(onResult)
@@ -102,6 +102,7 @@ class WeatherConfigurationActivity : ComponentActivity() {
     }
 
     private fun requestLocation(onResult: (Double?, Double?) -> Unit) {
+        Log.d(TAG, "WeatherConfig: requesting current location")
         val permission = Manifest.permission.ACCESS_COARSE_LOCATION
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
             getLocation(onResult)
@@ -124,23 +125,28 @@ class WeatherConfigurationActivity : ComponentActivity() {
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cancellationTokenSource.token)
                 .addOnSuccessListener { location ->
                     if (location != null) {
+                        Log.d(TAG, "WeatherConfig: location received: latitude=${location.latitude} longitude=${location.longitude}")
                         onResult(location.latitude, location.longitude)
                     } else {
                         // Fallback to last known location
                         fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
                             if (lastLoc != null) {
+                                Log.d(TAG, "WeatherConfig: using last known location: latitude=${lastLoc.latitude} longitude=${lastLoc.longitude}")
                                 onResult(lastLoc.latitude, lastLoc.longitude)
                             } else {
+                                Log.e(TAG, "WeatherConfig: current location unavailable")
                                 Toast.makeText(this, "Could not determine location. Ensure GPS is enabled.", Toast.LENGTH_LONG).show()
                                 onResult(null, null)
                             }
                         }.addOnFailureListener {
+                            Log.e(TAG, "Fallback last location request failed.")
                             Toast.makeText(this, "Could not determine location.", Toast.LENGTH_SHORT).show()
                             onResult(null, null)
                         }
                     }
                 }
                 .addOnFailureListener {
+                    Log.e(TAG, "Current location request failed.")
                     Toast.makeText(this, "Location request failed.", Toast.LENGTH_SHORT).show()
                     onResult(null, null)
                 }
@@ -150,7 +156,7 @@ class WeatherConfigurationActivity : ComponentActivity() {
         }
     }
 
-    private fun saveConfiguration(mode: String, city: String, lat: Double?, lon: Double?, unit: String) {
+    private fun saveConfiguration(mode: String, city: String, lat: Double?, lon: Double?, unit: String, onFetchFailed: () -> Unit) {
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
             val cleanCity = city.trim()
@@ -166,14 +172,23 @@ class WeatherConfigurationActivity : ComponentActivity() {
             Log.d(TAG, "Saved configuration for appWidgetId: $appWidgetId")
 
             // Pre-fetch live weather to cache it
-            try {
+            val fetchedWeather = try {
                 if (mode == "CURRENT_LOCATION" && lat != null && lon != null) {
                     repository.getWeatherForCoordinates(lat, lon, unit, forceRefresh = true)
                 } else if (cleanCity.isNotBlank()) {
                     repository.getWeatherForCity(cleanCity, unit, forceRefresh = true)
-                }
+                } else null
             } catch (e: Exception) {
                 Log.e(TAG, "Initial weather fetch failed during config save for widget $appWidgetId", e)
+                null
+            }
+
+            if (fetchedWeather == null) {
+                withContext(Dispatchers.Main) {
+                    onFetchFailed()
+                    Toast.makeText(this@WeatherConfigurationActivity, "Failed to fetch weather. Please try again.", Toast.LENGTH_LONG).show()
+                }
+                return@launch
             }
 
             withContext(Dispatchers.Main) {
@@ -209,7 +224,7 @@ class WeatherConfigurationActivity : ComponentActivity() {
 fun WeatherConfigScreenContent(
     appWidgetId: Int,
     db: AppDatabase,
-    onSave: (mode: String, city: String, lat: Double?, lon: Double?, unit: String) -> Unit,
+    onSave: (mode: String, city: String, lat: Double?, lon: Double?, unit: String, onFetchFailed: () -> Unit) -> Unit,
     onRequestLocation: (onResult: (Double?, Double?) -> Unit) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -236,14 +251,14 @@ fun WeatherConfigScreenContent(
             if (mode == "CURRENT_LOCATION") {
                 onRequestLocation { lat, lon ->
                     if (lat != null && lon != null) {
-                        onSave("CURRENT_LOCATION", "", lat, lon, unit)
+                        onSave("CURRENT_LOCATION", "", lat, lon, unit) { isSaving = false }
                     } else {
                         isSaving = false
                     }
                 }
             } else {
                 if (city.isNotBlank()) {
-                    onSave("MANUAL_CITY", city.trim(), null, null, unit)
+                    onSave("MANUAL_CITY", city.trim(), null, null, unit) { isSaving = false }
                 } else {
                     isSaving = false
                 }

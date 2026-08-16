@@ -7,6 +7,5 @@
     android:updatePeriodMillis="1800000"
     android:description="@string/weather_widget_description"
     android:widgetCategory="home_screen"
-    android:configure="com.widget.smartwidgets.ui.screens.weather.WeatherConfigurationActivity"
     android:widgetFeatures="reconfigurable"
     android:initialLayout="@layout/glance_default_loading_layout" android:previewLayout="@layout/widget_preview_weather" />

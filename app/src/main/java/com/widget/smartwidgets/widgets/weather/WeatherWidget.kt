@@ -113,7 +113,7 @@ fun WeatherWidgetContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "⛅ Weather",
+                        text = "Weather",
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
                             fontWeight = FontWeight.Bold,
@@ -122,7 +122,7 @@ fun WeatherWidgetContent(
                     )
                     Spacer(modifier = GlanceModifier.height(6.dp))
                     Text(
-                        text = "Tap to setup city",
+                        text = "Tap to configure",
                         style = TextStyle(
                             color = GlanceTheme.colors.primary,
                             fontSize = 13.sp

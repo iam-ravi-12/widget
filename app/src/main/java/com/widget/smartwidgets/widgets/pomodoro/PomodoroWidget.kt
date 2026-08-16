@@ -175,7 +175,17 @@ class PomodoroWidget : GlanceAppWidget() {
             val displayState = state.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.US) else it.toString() }
 
             GlanceTheme {
-                GlanceWidgetCard(horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
+                val cardModifier = if (state == "idle") {
+                    GlanceModifier.clickable(
+                        actionRunCallback<PomodoroActionCallback>(
+                            actionParametersOf(ActionParameters.Key<String>("action") to "start")
+                        )
+                    )
+                } else {
+                    GlanceModifier
+                }
+                
+                GlanceWidgetCard(modifier = cardModifier, horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
                     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Pomodoro",
@@ -189,12 +199,13 @@ class PomodoroWidget : GlanceAppWidget() {
                         )
                     }
                     Spacer(modifier = GlanceModifier.height(8.dp))
+                    
                     if (state == "working" || state == "break") {
                         val remoteViews = RemoteViews(context.packageName, R.layout.widget_pomodoro_timer)
                         val baseTime = SystemClock.elapsedRealtime() + (endTime - System.currentTimeMillis())
                         remoteViews.setLong(R.id.chronometer, "setBase", baseTime)
-                        // Chronometer auto-starts when setBase is called if it's visible, but we can enforce it:
                         remoteViews.setBoolean(R.id.chronometer, "setStarted", true)
+                        
                         AndroidRemoteViews(remoteViews)
                     } else {
                         Text(
@@ -214,7 +225,6 @@ class PomodoroWidget : GlanceAppWidget() {
                                 text = "Start",
                                 onClick = actionRunCallback<PomodoroActionCallback>(
                                     actionParametersOf(
-                                        ActionParameters.Key<Int>("appWidgetId") to appWidgetId,
                                         ActionParameters.Key<String>("action") to "start"
                                     )
                                 )
@@ -224,7 +234,6 @@ class PomodoroWidget : GlanceAppWidget() {
                                 text = "Pause",
                                 onClick = actionRunCallback<PomodoroActionCallback>(
                                     actionParametersOf(
-                                        ActionParameters.Key<Int>("appWidgetId") to appWidgetId,
                                         ActionParameters.Key<String>("action") to "pause"
                                     )
                                 )
@@ -234,7 +243,6 @@ class PomodoroWidget : GlanceAppWidget() {
                                 text = "Resume",
                                 onClick = actionRunCallback<PomodoroActionCallback>(
                                     actionParametersOf(
-                                        ActionParameters.Key<Int>("appWidgetId") to appWidgetId,
                                         ActionParameters.Key<String>("action") to "resume"
                                     )
                                 )
@@ -247,7 +255,6 @@ class PomodoroWidget : GlanceAppWidget() {
                             text = "Reset",
                             onClick = actionRunCallback<PomodoroActionCallback>(
                                 actionParametersOf(
-                                    ActionParameters.Key<Int>("appWidgetId") to appWidgetId,
                                     ActionParameters.Key<String>("action") to "reset"
                                 )
                             )
@@ -271,7 +278,8 @@ class PomodoroActionCallback : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
-        val appWidgetId = parameters[ActionParameters.Key<Int>("appWidgetId")] ?: return
+        val manager = GlanceAppWidgetManager(context)
+        val appWidgetId = manager.getAppWidgetId(glanceId)
         val action = parameters[ActionParameters.Key<String>("action")] ?: return
 
         val prefs = WidgetPreferences(context)
@@ -283,8 +291,17 @@ class PomodoroActionCallback : ActionCallback {
 
         when (action) {
             "start" -> {
+                android.util.Log.d("Pomodoro", "action received = start")
+                android.util.Log.d("Pomodoro", "glanceId = $glanceId")
+                android.util.Log.d("Pomodoro", "appWidgetId = $appWidgetId")
+                android.util.Log.d("Pomodoro", "currentState = $currentState")
+                
                 val duration = 25 * 60 * 1000L
                 val endTime = System.currentTimeMillis() + duration
+                
+                android.util.Log.d("Pomodoro", "new state = working")
+                android.util.Log.d("Pomodoro", "endTime = $endTime")
+                
                 prefs.setPreference(stateKey, "working")
                 prefs.setPreference(endTimeKey, endTime.toString())
                 PomodoroAlarmScheduler.scheduleAlarm(context, appWidgetId, endTime)
@@ -316,6 +333,7 @@ class PomodoroActionCallback : ActionCallback {
             }
         }
 
+        android.util.Log.d("Pomodoro", "widget update requested")
         PomodoroWidget().update(context, glanceId)
     }
 }
