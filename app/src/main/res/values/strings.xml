@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Smart Widgets</string>
+    <string name="clock_widget_name">Clock</string>
+    <string name="clock_widget_description">Battery-efficient clock widget showing time and date</string>
+    <string name="battery_widget_name">Battery</string>
+    <string name="battery_widget_description">Battery percentage and charging status</string>
+    <string name="calendar_widget_name">Upcoming Events</string>
+    <string name="calendar_widget_description">Shows upcoming events from your calendar</string>
+    <string name="quick_notes_widget_name">Quick Notes</string>
+    <string name="quick_notes_widget_description">Quickly view and manage short notes</string>
+    <string name="weather_widget_name">Weather</string>
+    <string name="weather_widget_description">Current weather for a selected city</string>
+    
+    <string name="storage_widget_name">Storage Info</string>
+    <string name="storage_widget_description">Displays available device storage</string>
+    
+    <string name="memory_widget_name">Memory (RAM)</string>
+    <string name="memory_widget_description">Displays available RAM</string>
+    
+    <string name="network_widget_name">Network Status</string>
+    <string name="network_widget_description">Shows active network connection state</string>
+    
+    <string name="deviceinfo_widget_name">Device Info</string>
+    <string name="deviceinfo_widget_description">Shows Android version and device details</string>
+    
+    <string name="worldclock_widget_name">World Clock</string>
+    <string name="worldclock_widget_description">Track time in multiple cities</string>
+    
+    <string name="countdown_widget_name">Countdown</string>
+    <string name="countdown_widget_description">Countdown to an event</string>
+    
+    <string name="pomodoro_widget_name">Pomodoro Timer</string>
+    <string name="pomodoro_widget_description">Focus timer with work/break sessions</string>
+    
+    <string name="todo_widget_name">To-Do List</string>
+    <string name="todo_widget_description">Quickly check off your tasks</string>
+    
+    <string name="photoframe_widget_name">Photo Frame</string>
+    <string name="photoframe_widget_description">Display a favorite photo</string>
+    
+    <string name="quote_widget_name">Daily Quote</string>
+    <string name="quote_widget_description">A new inspiring quote every day</string>
+</resources>
