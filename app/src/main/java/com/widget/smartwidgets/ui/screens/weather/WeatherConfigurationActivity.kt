@@ -102,7 +102,7 @@ class WeatherConfigurationActivity : ComponentActivity() {
     }
 
     private fun requestLocation(onResult: (Double?, Double?) -> Unit) {
-        Log.d(TAG, "WeatherConfig: requesting current location")
+        Log.d(TAG, "WEATHER DEBUG:\nrequesting current location")
         val permission = Manifest.permission.ACCESS_COARSE_LOCATION
         if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
             getLocation(onResult)
@@ -125,16 +125,16 @@ class WeatherConfigurationActivity : ComponentActivity() {
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cancellationTokenSource.token)
                 .addOnSuccessListener { location ->
                     if (location != null) {
-                        Log.d(TAG, "WeatherConfig: location received: latitude=${location.latitude} longitude=${location.longitude}")
+                        Log.d(TAG, "WEATHER DEBUG:\nlocation received:\nlatitude=${location.latitude}\nlongitude=${location.longitude}")
                         onResult(location.latitude, location.longitude)
                     } else {
                         // Fallback to last known location
                         fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
                             if (lastLoc != null) {
-                                Log.d(TAG, "WeatherConfig: using last known location: latitude=${lastLoc.latitude} longitude=${lastLoc.longitude}")
+                                Log.d(TAG, "WEATHER DEBUG:\nusing last known location:\nlatitude=${lastLoc.latitude}\nlongitude=${lastLoc.longitude}")
                                 onResult(lastLoc.latitude, lastLoc.longitude)
                             } else {
-                                Log.e(TAG, "WeatherConfig: current location unavailable")
+                                Log.e(TAG, "WEATHER DEBUG:\ncurrent location unavailable")
                                 Toast.makeText(this, "Could not determine location. Ensure GPS is enabled.", Toast.LENGTH_LONG).show()
                                 onResult(null, null)
                             }
@@ -203,7 +203,9 @@ class WeatherConfigurationActivity : ComponentActivity() {
                     try {
                         val manager = GlanceAppWidgetManager(this@WeatherConfigurationActivity)
                         val glanceId = manager.getGlanceIdBy(appWidgetId)
+                        Log.d(TAG, "WEATHER DEBUG:\nupdating widget\nappWidgetId = $appWidgetId")
                         WeatherWidget().update(this@WeatherConfigurationActivity, glanceId)
+                        Log.d(TAG, "WEATHER DEBUG:\nwidget update requested")
                         WeatherWidgetReceiver.scheduleWeatherWorker(this@WeatherConfigurationActivity)
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to natively update Glance widget after config", e)

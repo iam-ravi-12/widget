@@ -57,16 +57,24 @@ class WeatherWidget : GlanceAppWidget() {
         }
 
         var weatherData: WeatherEntity? = null
+        var locationIdBeingQueried: String? = null
         if (config != null) {
             val repository = WeatherRepository.getInstance(context)
-            val locationId = if (config.locationMode == "CURRENT_LOCATION" && config.latitude != null && config.longitude != null) {
+            locationIdBeingQueried = if (config.locationMode == "CURRENT_LOCATION" && config.latitude != null && config.longitude != null) {
                 WeatherRepository.formatCoordinates(config.latitude, config.longitude, config.temperatureUnit)
             } else {
                 WeatherRepository.normalizeCity(config.cityName, config.temperatureUnit)
             }
 
             // Read from cache. Live fetches are handled by WeatherConfigurationActivity and RefreshWeatherAction.
-            weatherData = repository.getCachedWeather(locationId)
+            weatherData = repository.getCachedWeather(locationIdBeingQueried)
+        }
+        
+        Log.d("WeatherWidget", "WEATHER DEBUG:\nwidget rendering\nappWidgetId = $appWidgetId")
+        Log.d("WeatherWidget", "WEATHER DEBUG:\nconfig found = ${config != null}\nweather found = ${weatherData != null}")
+        
+        if (config != null && weatherData == null) {
+            Log.d("WeatherWidget", "WEATHER DEBUG:\nweather is null. locationId being queried = $locationIdBeingQueried")
         }
 
         provideContent {

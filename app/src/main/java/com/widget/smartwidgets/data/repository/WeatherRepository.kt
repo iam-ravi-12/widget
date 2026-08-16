@@ -35,6 +35,7 @@ class WeatherRepository private constructor(context: Context) {
         }
         val cleanUnit = sanitizeUnits(units)
         val locationId = normalizeCity(city, cleanUnit)
+        Log.d(TAG, "WEATHER DEBUG:\ncalling OpenWeather\ncity = $city\nunits = $cleanUnit")
         return fetchWeather(locationId = locationId, units = cleanUnit, forceRefresh = forceRefresh) { apiKey ->
             api.getWeatherByCity(city = city.trim(), apiKey = apiKey, units = cleanUnit)
         }
@@ -48,6 +49,7 @@ class WeatherRepository private constructor(context: Context) {
     ): WeatherEntity? {
         val cleanUnit = sanitizeUnits(units)
         val locationId = formatCoordinates(lat, lon, cleanUnit)
+        Log.d(TAG, "WEATHER DEBUG:\ncalling OpenWeather\nlat = $lat\nlon = $lon\nunits = $cleanUnit")
         return fetchWeather(locationId = locationId, units = cleanUnit, forceRefresh = forceRefresh) { apiKey ->
             api.getWeatherByCoordinates(lat = lat, lon = lon, apiKey = apiKey, units = cleanUnit)
         }
@@ -66,14 +68,17 @@ class WeatherRepository private constructor(context: Context) {
         if (isStale || forceRefresh) {
             val apiKey = BuildConfig.WEATHER_API_KEY
             if (apiKey == "NO_API_KEY" || apiKey.isBlank()) {
-                Log.e(TAG, "WeatherAPI: API key configured = false")
+                Log.e(TAG, "WEATHER DEBUG:\napiKeyConfigured = false\napiKeyLength = ${apiKey.length}")
                 Log.e(TAG, "OPEN_WEATHER_API_KEY is missing from local.properties.")
                 return cached
             }
-            Log.d(TAG, "WeatherAPI: API key configured = true")
+            Log.d(TAG, "WEATHER DEBUG:\napiKeyConfigured = true\napiKeyLength = ${apiKey.length}")
 
             try {
                 val response = apiCall(apiKey)
+                
+                Log.d(TAG, "WEATHER DEBUG:\nOpenWeather response received")
+                Log.d(TAG, "WEATHER DEBUG:\nresponse.name = ${response.name}\nresponse.main.temp = ${response.main.temp}\nresponse.main.feels_like = ${response.main.feelsLike}\nresponse.main.humidity = ${response.main.humidity}\nresponse.weather.firstOrNull()?.main = ${response.weather.firstOrNull()?.main}\nresponse.weather.firstOrNull()?.description = ${response.weather.firstOrNull()?.description}\nresponse.weather.firstOrNull()?.icon = ${response.weather.firstOrNull()?.icon}")
                 
                 val newEntity = WeatherEntity(
                     locationId = locationId,
@@ -85,24 +90,33 @@ class WeatherRepository private constructor(context: Context) {
                     fetchedAt = System.currentTimeMillis()
                 )
                 
+                Log.d(TAG, "WEATHER DEBUG:\nresponse conversion SUCCESS")
+                Log.d(TAG, "WEATHER DEBUG:\nWeatherEntity created")
+                
                 weatherDao.insertWeather(newEntity)
-                Log.d(TAG, "WeatherAPI: request successful")
-                Log.d(TAG, "WeatherAPI: temperature=${newEntity.temperature}")
-                Log.d(TAG, "WeatherAPI: city=${newEntity.displayName}")
+                Log.d(TAG, "WEATHER DEBUG:\nRoom weather save SUCCESS\nlocationId = $locationId")
+                
+                val readBack = weatherDao.getWeatherByLocation(locationId)
+                if (readBack != null) {
+                    Log.d(TAG, "WEATHER DEBUG:\nRoom read-back SUCCESS\ncity = ${readBack.displayName}\ntemperature = ${readBack.temperature}")
+                } else {
+                    Log.e(TAG, "WEATHER DEBUG:\nRoom read-back FAILED for locationId = $locationId")
+                }
+                
                 return newEntity
             } catch (e: HttpException) {
-                Log.e(TAG, "WeatherAPI: HTTP status = ${e.code()}")
+                Log.e(TAG, "WEATHER DEBUG:\nHTTP FAILURE\nstatus = ${e.code()}")
                 val errorBody = e.response()?.errorBody()?.string()?.take(200) ?: "unknown"
-                Log.e(TAG, "WeatherAPI: error body = $errorBody")
+                Log.e(TAG, "WEATHER DEBUG:\nerror body = $errorBody")
                 return cached
             } catch (e: IOException) {
-                Log.e(TAG, "WeatherAPI: network error = ${e.message}")
+                Log.e(TAG, "WEATHER DEBUG:\nNETWORK FAILURE\nmessage = ${e.message}")
                 return cached
             } catch (e: kotlinx.serialization.SerializationException) {
-                Log.e(TAG, "WeatherAPI: JSON parsing error = ${e.message}")
+                Log.e(TAG, "WEATHER DEBUG:\nPARSING FAILURE\nmessage = ${e.message}")
                 return cached
             } catch (e: Exception) {
-                Log.e(TAG, "WeatherAPI: unexpected error = ${e.javaClass.simpleName}: ${e.message}")
+                Log.e(TAG, "WEATHER DEBUG:\nUNEXPECTED FAILURE\nclass = ${e.javaClass.simpleName}\nmessage = ${e.message}")
                 return cached
             }
         }
