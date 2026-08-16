@@ -4,7 +4,7 @@
     android:minHeight="110dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
     android:description="@string/weather_widget_description"
     android:widgetCategory="home_screen"
     android:configure="com.widget.smartwidgets.ui.screens.weather.WeatherConfigurationActivity"

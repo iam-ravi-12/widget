@@ -183,14 +183,18 @@ class WeatherConfigurationActivity : ComponentActivity() {
                 }
                 setResult(Activity.RESULT_OK, resultValue)
 
-                // Trigger Glance to do the actual UI generation natively via broadcast
-                val updateIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).apply {
-                    component = ComponentName(this@WeatherConfigurationActivity, WeatherWidgetReceiver::class.java)
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
+                // Trigger proper Glance update
+                launch {
+                    try {
+                        val manager = GlanceAppWidgetManager(this@WeatherConfigurationActivity)
+                        val glanceId = manager.getGlanceIdBy(appWidgetId)
+                        WeatherWidget().update(this@WeatherConfigurationActivity, glanceId)
+                        WeatherWidgetReceiver.scheduleWeatherWorker(this@WeatherConfigurationActivity)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to natively update Glance widget after config", e)
+                    }
+                    finish()
                 }
-                sendBroadcast(updateIntent)
-                
-                finish()
             }
         }
     }

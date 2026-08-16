@@ -86,19 +86,11 @@ class CountdownWidget : GlanceAppWidget() {
                                 style = TextStyle(color = GlanceTheme.colors.primary, fontWeight = FontWeight.Bold)
                             )
                         } else {
-                            val days = TimeUnit.MILLISECONDS.toDays(diffMillis)
-                            val hours = TimeUnit.MILLISECONDS.toHours(diffMillis) % 24
-                            
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = "${days}d ${hours}h",
-                                    style = TextStyle(
-                                        color = GlanceTheme.colors.onSurface,
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
+                            val remoteViews = android.widget.RemoteViews(context.packageName, com.widget.smartwidgets.R.layout.widget_countdown_timer)
+                            val baseTime = android.os.SystemClock.elapsedRealtime() + diffMillis
+                            remoteViews.setLong(com.widget.smartwidgets.R.id.chronometer, "setBase", baseTime)
+                            remoteViews.setBoolean(com.widget.smartwidgets.R.id.chronometer, "setStarted", true)
+                            androidx.glance.appwidget.AndroidRemoteViews(remoteViews)
                         }
                     }
                 }
