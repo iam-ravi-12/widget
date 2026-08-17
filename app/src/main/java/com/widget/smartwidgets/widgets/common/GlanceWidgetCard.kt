@@ -14,6 +14,7 @@ import androidx.glance.layout.padding
 @Composable
 fun GlanceWidgetCard(
     modifier: GlanceModifier = GlanceModifier,
+    contentPadding: androidx.compose.ui.unit.Dp = 16.dp,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     verticalAlignment: Alignment.Vertical = Alignment.Top,
     content: @Composable ColumnScope.() -> Unit
@@ -22,7 +23,7 @@ fun GlanceWidgetCard(
         modifier = modifier
             .fillMaxSize()
             .background(GlanceTheme.colors.surface)
-            .padding(16.dp),
+            .padding(contentPadding),
         horizontalAlignment = horizontalAlignment,
         verticalAlignment = verticalAlignment,
         content = content

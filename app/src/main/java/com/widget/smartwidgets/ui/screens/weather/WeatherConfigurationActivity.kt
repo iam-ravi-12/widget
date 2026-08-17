@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.updateAll
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -160,18 +161,8 @@ class WeatherConfigurationActivity : ComponentActivity() {
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
             val cleanCity = city.trim()
-            val config = WeatherWidgetConfigEntity(
-                appWidgetId = appWidgetId,
-                locationMode = mode,
-                cityName = cleanCity,
-                latitude = lat,
-                longitude = lon,
-                temperatureUnit = unit
-            )
-            db.weatherWidgetConfigDao().insertConfig(config)
-            Log.d(TAG, "Saved configuration for appWidgetId: $appWidgetId")
 
-            // Pre-fetch live weather to cache it
+            // 1. Fetch weather successfully.
             val fetchedWeather = try {
                 if (mode == "CURRENT_LOCATION" && lat != null && lon != null) {
                     repository.getWeatherForCoordinates(lat, lon, unit, forceRefresh = true)
@@ -191,6 +182,20 @@ class WeatherConfigurationActivity : ComponentActivity() {
                 return@launch
             }
 
+            // 2. WeatherEntity is created and saved inside repository.getWeather...()
+            
+            // 3. Save WeatherWidgetConfigEntity.
+            val config = WeatherWidgetConfigEntity(
+                appWidgetId = appWidgetId,
+                locationMode = mode,
+                cityName = cleanCity,
+                latitude = lat,
+                longitude = lon,
+                temperatureUnit = unit
+            )
+            db.weatherWidgetConfigDao().insertConfig(config)
+            Log.d(TAG, "Saved configuration for appWidgetId: $appWidgetId")
+
             withContext(Dispatchers.Main) {
                 // Return RESULT_OK to the launcher
                 val resultValue = Intent().apply {
@@ -198,15 +203,21 @@ class WeatherConfigurationActivity : ComponentActivity() {
                 }
                 setResult(Activity.RESULT_OK, resultValue)
 
-                // Trigger proper Glance update
+                // 4. Update Weather widgets explicitly
                 launch {
                     try {
-                        val manager = GlanceAppWidgetManager(this@WeatherConfigurationActivity)
-                        val glanceId = manager.getGlanceIdBy(appWidgetId)
-                        Log.d(TAG, "WEATHER DEBUG:\nupdating widget\nappWidgetId = $appWidgetId")
-                        WeatherWidget().update(this@WeatherConfigurationActivity, glanceId)
+                        Log.d(TAG, "WEATHER DEBUG:\nupdating all widgets")
+                        WeatherWidget().updateAll(applicationContext)
+                        
+                        // Force update via broadcast for the newly configured widget to guarantee OS redraw
+                        val updateIntent = Intent(applicationContext, WeatherWidgetReceiver::class.java).apply {
+                            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
+                        }
+                        sendBroadcast(updateIntent)
+
                         Log.d(TAG, "WEATHER DEBUG:\nwidget update requested")
-                        WeatherWidgetReceiver.scheduleWeatherWorker(this@WeatherConfigurationActivity)
+                        WeatherWidgetReceiver.scheduleWeatherWorker(applicationContext)
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to natively update Glance widget after config", e)
                     }

@@ -18,6 +18,7 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.updateAll
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -93,8 +94,11 @@ class PomodoroWidgetReceiver : GlanceAppWidgetReceiver() {
         }
         
         val manager = GlanceAppWidgetManager(context)
-        val glanceId = manager.getGlanceIdBy(appWidgetId)
-        PomodoroWidget().update(context, glanceId)
+        try {
+            PomodoroWidget().updateAll(context)
+        } catch (e: Exception) {
+            // fallback if anything fails
+        }
     }
 }
 
@@ -154,13 +158,32 @@ class PomodoroWidget : GlanceAppWidget() {
         val endTimeKey = PreferencesKeys.pomodoroEndTime(appWidgetId)
         val remainingKey = androidx.datastore.preferences.core.longPreferencesKey("pomodoro_remaining_$appWidgetId")
 
-        val state = prefs.getPreference(stateKey, "idle").firstOrNull() ?: "idle"
-        val endTimeStr = prefs.getPreference(endTimeKey, "0").firstOrNull() ?: "0"
-        val endTime = endTimeStr.toLongOrNull() ?: 0L
+        var state = prefs.getPreference(stateKey, "idle").firstOrNull() ?: "idle"
+        var endTimeStr = prefs.getPreference(endTimeKey, "0").firstOrNull() ?: "0"
+        var endTime = endTimeStr.toLongOrNull() ?: 0L
         val remainingAtPause = prefs.getPreference(remainingKey, 0L).firstOrNull() ?: 0L
 
         provideContent {
             val currentTime = System.currentTimeMillis()
+
+            // Handle delayed alarms to prevent negative timers
+            if (state == "working" && currentTime >= endTime) {
+                state = "break"
+                endTime = currentTime + (5 * 60 * 1000)
+                CoroutineScope(Dispatchers.IO).launch {
+                    prefs.setPreference(stateKey, state)
+                    prefs.setPreference(endTimeKey, endTime.toString())
+                    PomodoroAlarmScheduler.scheduleAlarm(context, appWidgetId, endTime)
+                }
+            } else if (state == "break" && currentTime >= endTime) {
+                state = "idle"
+                endTime = 0L
+                CoroutineScope(Dispatchers.IO).launch {
+                    prefs.setPreference(stateKey, state)
+                    prefs.setPreference(endTimeKey, "0")
+                }
+            }
+
             var remaining = if (state == "paused") remainingAtPause else endTime - currentTime
             
             if (state == "idle") {
@@ -175,17 +198,12 @@ class PomodoroWidget : GlanceAppWidget() {
             val displayState = state.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.US) else it.toString() }
 
             GlanceTheme {
-                val cardModifier = if (state == "idle") {
-                    GlanceModifier.clickable(
-                        actionRunCallback<PomodoroActionCallback>(
-                            actionParametersOf(ActionParameters.Key<String>("action") to "start")
-                        )
-                    )
-                } else {
-                    GlanceModifier
-                }
-                
-                GlanceWidgetCard(modifier = cardModifier, horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
+                GlanceWidgetCard(
+                    modifier = GlanceModifier,
+                    contentPadding = 8.dp,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Pomodoro",
@@ -198,11 +216,11 @@ class PomodoroWidget : GlanceAppWidget() {
                             modifier = GlanceModifier.clickable(actionRunCallback<PomodoroRefreshAction>())
                         )
                     }
-                    Spacer(modifier = GlanceModifier.height(8.dp))
+                    Spacer(modifier = GlanceModifier.height(4.dp))
                     
                     if (state == "working" || state == "break") {
                         val remoteViews = RemoteViews(context.packageName, R.layout.widget_pomodoro_timer)
-                        val baseTime = SystemClock.elapsedRealtime() + (endTime - System.currentTimeMillis())
+                        val baseTime = SystemClock.elapsedRealtime() + remaining
                         remoteViews.setLong(R.id.chronometer, "setBase", baseTime)
                         remoteViews.setBoolean(R.id.chronometer, "setStarted", true)
                         
@@ -210,14 +228,14 @@ class PomodoroWidget : GlanceAppWidget() {
                     } else {
                         Text(
                             text = timeString,
-                            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                         )
                     }
                     Text(
                         text = displayState,
-                        style = TextStyle(color = GlanceTheme.colors.primary)
+                        style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 12.sp)
                     )
-                    Spacer(modifier = GlanceModifier.height(16.dp))
+                    Spacer(modifier = GlanceModifier.height(8.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (state == "idle" || remaining == 0L) {
@@ -268,7 +286,7 @@ class PomodoroWidget : GlanceAppWidget() {
 
 class PomodoroRefreshAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        PomodoroWidget().update(context, glanceId)
+        PomodoroWidget().updateAll(context)
     }
 }
 
