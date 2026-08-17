@@ -1,10 +1,14 @@
 package com.widget.smartwidgets.widgets.battery
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * AppWidget receiver for Battery widgets.
@@ -22,7 +26,7 @@ class BatteryWidgetReceiver : GlanceAppWidgetReceiver() {
 
     override fun onUpdate(
         context: Context,
-        appWidgetManager: android.appwidget.AppWidgetManager,
+        appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
@@ -40,7 +44,7 @@ class BatteryWidgetReceiver : GlanceAppWidgetReceiver() {
             Intent.ACTION_USER_PRESENT,
             Intent.ACTION_POWER_CONNECTED,
             Intent.ACTION_POWER_DISCONNECTED -> {
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     try {
                         BatteryWidget().updateAll(context)
                     } catch (e: Exception) {
