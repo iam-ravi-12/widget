@@ -1,9 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:name=".WidgetApplication"
@@ -33,7 +34,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Clock Widget Receiver -->
         <receiver
             android:name=".widgets.clock.ClockWidgetReceiver"
             android:exported="true"
@@ -46,12 +46,6 @@
                 android:resource="@xml/clock_widget_info" />
         </receiver>
 
-        <!-- Battery Widget Receiver
-             Update strategy: 15-min periodic WorkManager + 30-min updatePeriodMillis.
-             + ACTION_USER_PRESENT (instant update upon screen unlock).
-             Note: POWER_CONNECTED/DISCONNECTED/BATTERY_LOW/OKAY are NOT exempt from
-             implicit broadcast restrictions on Android 8.0+, so we do NOT register
-             them here — they would be dead code. -->
         <receiver
             android:name=".widgets.battery.BatteryWidgetReceiver"
             android:exported="true"
@@ -67,7 +61,15 @@
                 android:resource="@xml/battery_widget_info" />
         </receiver>
 
-        <!-- Calendar Widget Receiver -->
+        <service
+            android:name=".widgets.battery.BatteryMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="continuously monitor battery state so placed battery widgets can update when the battery changes" />
+        </service>
+
         <receiver
             android:name=".widgets.calendar.CalendarWidgetReceiver"
             android:exported="true"
@@ -87,7 +89,6 @@
                 android:resource="@xml/calendar_widget_info" />
         </receiver>
 
-        <!-- Quick Notes Widget Receiver -->
         <receiver
             android:name=".widgets.notes.QuickNotesWidgetReceiver"
             android:exported="true"
@@ -100,7 +101,6 @@
                 android:resource="@xml/quick_notes_widget_info" />
         </receiver>
 
-        <!-- Weather Widget Receiver -->
         <receiver
             android:name=".widgets.weather.WeatherWidgetReceiver"
             android:exported="true"
@@ -113,78 +113,125 @@
                 android:resource="@xml/weather_widget_info" />
         </receiver>
 
-        <!-- System Widgets -->
-
-        <!-- Storage Widget Receiver
-             Update strategy: 60-min periodic WorkManager + 30-min updatePeriodMillis.
-             Note: DEVICE_STORAGE_LOW/OK are NOT exempt from implicit broadcast
-             restrictions on Android 8.0+. -->
-        <receiver android:name=".widgets.storage.StorageWidgetReceiver" android:exported="true" android:label="@string/storage_widget_name">
+        <receiver
+            android:name=".widgets.storage.StorageWidgetReceiver"
+            android:exported="true"
+            android:label="@string/storage_widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/storage_widget_info" />
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/storage_widget_info" />
         </receiver>
 
-        <!-- Memory Widget Receiver
-             Update strategy: 30-min periodic WorkManager + 30-min updatePeriodMillis.
-             No reliable Android broadcast for RAM changes exists. -->
-        <receiver android:name=".widgets.memory.MemoryWidgetReceiver" android:exported="true" android:label="@string/memory_widget_name">
+        <receiver
+            android:name=".widgets.memory.MemoryWidgetReceiver"
+            android:exported="true"
+            android:label="@string/memory_widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/memory_widget_info" />
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/memory_widget_info" />
         </receiver>
 
-        <!-- Network Widget Receiver
-             Update strategy: 15-min periodic WorkManager + 30-min updatePeriodMillis.
-             Note: CONNECTIVITY_CHANGE is NOT exempt from implicit broadcast
-             restrictions on Android 8.0+. -->
-        <receiver android:name=".widgets.network.NetworkWidgetReceiver" android:exported="true" android:label="@string/network_widget_name">
+        <receiver
+            android:name=".widgets.network.NetworkWidgetReceiver"
+            android:exported="true"
+            android:label="@string/network_widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/network_widget_info" />
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/network_widget_info" />
         </receiver>
 
-        <receiver android:name=".widgets.deviceinfo.DeviceInfoWidgetReceiver" android:exported="true" android:label="@string/deviceinfo_widget_name">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/deviceinfo_widget_info" />
+        <receiver
+            android:name=".widgets.deviceinfo.DeviceInfoWidgetReceiver"
+            android:exported="true"
+            android:label="@string/deviceinfo_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/deviceinfo_widget_info" />
         </receiver>
 
-        <!-- Time and Data Widgets -->
-        <receiver android:name=".widgets.worldclock.WorldClockWidgetReceiver" android:exported="true" android:label="@string/worldclock_widget_name">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/worldclock_widget_info" />
-        </receiver>
-        
-        <receiver android:name=".widgets.countdown.CountdownWidgetReceiver" android:exported="true" android:label="@string/countdown_widget_name">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/countdown_widget_info" />
+        <receiver
+            android:name=".widgets.worldclock.WorldClockWidgetReceiver"
+            android:exported="true"
+            android:label="@string/worldclock_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/worldclock_widget_info" />
         </receiver>
 
-        <receiver android:name=".widgets.pomodoro.PomodoroWidgetReceiver" android:exported="true" android:label="@string/pomodoro_widget_name">
+        <receiver
+            android:name=".widgets.countdown.CountdownWidgetReceiver"
+            android:exported="true"
+            android:label="@string/countdown_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/countdown_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.pomodoro.PomodoroWidgetReceiver"
+            android:exported="true"
+            android:label="@string/pomodoro_widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.widget.smartwidgets.POMODORO_SESSION_COMPLETE" />
             </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/pomodoro_widget_info" />
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pomodoro_widget_info" />
         </receiver>
 
-        <receiver android:name=".widgets.todo.TodoWidgetReceiver" android:exported="true" android:label="@string/todo_widget_name">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/todo_widget_info" />
+        <receiver
+            android:name=".widgets.todo.TodoWidgetReceiver"
+            android:exported="true"
+            android:label="@string/todo_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/todo_widget_info" />
         </receiver>
 
-        <!-- Lifestyle Widgets -->
-        <receiver android:name=".widgets.photoframe.PhotoFrameWidgetReceiver" android:exported="true" android:label="@string/photoframe_widget_name">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/photoframe_widget_info" />
+        <receiver
+            android:name=".widgets.photoframe.PhotoFrameWidgetReceiver"
+            android:exported="true"
+            android:label="@string/photoframe_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/photoframe_widget_info" />
         </receiver>
 
-        <receiver android:name=".widgets.quote.QuoteWidgetReceiver" android:exported="true" android:label="@string/quote_widget_name">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/quote_widget_info" />
+        <receiver
+            android:name=".widgets.quote.QuoteWidgetReceiver"
+            android:exported="true"
+            android:label="@string/quote_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quote_widget_info" />
         </receiver>
 
     </application>
