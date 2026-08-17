@@ -22,6 +22,7 @@ import com.widget.smartwidgets.MainActivity
 import com.widget.smartwidgets.R
 import com.widget.smartwidgets.core.datastore.PreferencesKeys
 import com.widget.smartwidgets.core.datastore.WidgetPreferences
+import kotlinx.coroutines.flow.firstOrNull
 import java.util.Locale
 
 class WorldClockWidgetReceiver : GlanceAppWidgetReceiver() {
@@ -34,8 +35,12 @@ class WorldClockWidget : GlanceAppWidget() {
         val appWidgetId = manager.getAppWidgetId(id)
         val prefs = WidgetPreferences(context)
         val zonesKey = PreferencesKeys.worldClockZones(appWidgetId)
-        val configuredZonesStr = prefs.getPreference(zonesKey, "").kotlinx.coroutines.flow.firstOrNull()
-        val zones = if (configuredZonesStr.isNullOrBlank()) emptyList() else configuredZonesStr.split(",").filter { it.isNotBlank() }.take(4)
+        val configuredZonesStr = prefs.getPreference(zonesKey, "").firstOrNull()
+        val zones = if (configuredZonesStr.isNullOrBlank()) {
+            emptyList()
+        } else {
+            configuredZonesStr.split(",").filter { it.isNotBlank() }.take(4)
+        }
 
         provideContent {
             val configIntent = Intent(context, MainActivity::class.java).apply {
@@ -50,23 +55,11 @@ class WorldClockWidget : GlanceAppWidget() {
                         .fillMaxSize()
                         .clickable(actionStartActivity(configIntent))
                 ) {
-                    if (zones.isEmpty()) {
-                        WorldClockEmptyState()
-                    } else {
-                        WorldClockRemoteViews(context, zones)
-                    }
+                    WorldClockRemoteViews(context, zones)
                 }
             }
         }
     }
-}
-
-@Composable
-private fun WorldClockEmptyState() {
-    WorldClockRemoteViews(
-        context = androidx.glance.LocalContext.current,
-        zones = emptyList()
-    )
 }
 
 @Composable
@@ -91,25 +84,23 @@ private fun WorldClockRemoteViews(context: Context, zones: List<String>) {
         R.id.world_clock_time_4
     )
 
+    if (zones.isEmpty()) {
+        views.setTextViewText(R.id.world_clock_city_1, "Tap to add cities")
+        views.setViewVisibility(R.id.world_clock_row_1, View.VISIBLE)
+        views.setViewVisibility(R.id.world_clock_time_1, View.GONE)
+    }
+
     for (i in rowIds.indices) {
         if (i < zones.size) {
             val zoneId = zones[i]
             views.setViewVisibility(rowIds[i], View.VISIBLE)
             views.setTextViewText(cityIds[i], friendlyZoneName(zoneId))
-            // TextClock updates itself from the Android system clock; Kotlin does not
-            // calculate a snapshot time here.
+            // TextClock updates itself from the Android system clock.
             views.setString(timeIds[i], "setTimeZone", zoneId)
-        } else {
+            views.setViewVisibility(timeIds[i], View.VISIBLE)
+        } else if (zones.isNotEmpty()) {
             views.setViewVisibility(rowIds[i], View.GONE)
         }
-    }
-
-    if (zones.isEmpty()) {
-        views.setTextViewText(R.id.world_clock_city_1, "Tap to add cities")
-        views.setViewVisibility(R.id.world_clock_row_1, View.VISIBLE)
-        views.setViewVisibility(R.id.world_clock_time_1, View.GONE)
-    } else {
-        views.setViewVisibility(R.id.world_clock_time_1, View.VISIBLE)
     }
 
     AndroidRemoteViews(views)
