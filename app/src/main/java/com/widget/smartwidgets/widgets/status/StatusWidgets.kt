@@ -1,13 +1,16 @@
 package com.widget.smartwidgets.widgets.status
 
 import android.app.NotificationManager
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CameraCharacteristics
 import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.wifi.WifiManager
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,75 @@ import androidx.glance.text.TextStyle
 import com.widget.smartwidgets.widgets.common.GlanceWidgetCard
 import kotlinx.coroutines.launch
 import androidx.glance.appwidget.updateAll
+
+private const val WIDGET_PREFS = "widget_prefs"
+private const val ACTION_CHECK_STOP = "CHECK_STOP"
+private const val WIFI_AP_STATE_DISABLED = 11
+private const val WIFI_AP_STATE_ENABLED = 13
+
+private fun Context.startStatusMonitorService() {
+    val intent = Intent(this, StatusWidgetsMonitorService::class.java)
+    try {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("StatusWidgets", "Unable to start status monitor service", e)
+    }
+}
+
+private fun Context.checkStopStatusMonitorService() {
+    val intent = Intent(this, StatusWidgetsMonitorService::class.java).apply {
+        action = ACTION_CHECK_STOP
+    }
+    try {
+        startService(intent)
+    } catch (e: Exception) {
+        android.util.Log.e("StatusWidgets", "Unable to request status monitor stop", e)
+    }
+}
+
+private fun Context.openAppSettings() {
+    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.parse("package:$packageName")
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    })
+}
+
+private fun readHotspotEnabled(context: Context): Boolean? {
+    val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) ?: return null
+
+    return try {
+        val enabledMethod = wifiManager.javaClass.getDeclaredMethod("isWifiApEnabled")
+        enabledMethod.isAccessible = true
+        enabledMethod.invoke(wifiManager) as? Boolean
+    } catch (_: Exception) {
+        try {
+            val stateMethod = wifiManager.javaClass.getDeclaredMethod("getWifiApState")
+            stateMethod.isAccessible = true
+            when (stateMethod.invoke(wifiManager) as? Int) {
+                WIFI_AP_STATE_ENABLED -> true
+                WIFI_AP_STATE_DISABLED -> false
+                else -> null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+}
+
+private fun CameraManager.findTorchCameraId(): String? {
+    return cameraIdList.firstOrNull { id ->
+        try {
+            getCameraCharacteristics(id)
+                .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+}
 
 @Composable
 fun StatusWidgetLayout(
@@ -129,19 +201,19 @@ class AutoRotationWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = AutoRotationWidget()
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        val intent = Intent(context, StatusWidgetsMonitorService::class.java)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
+        context.startStatusMonitorService()
+    }
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
     }
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
-        val intent = Intent(context, StatusWidgetsMonitorService::class.java).apply {
-            action = "CHECK_STOP"
-        }
-        context.startService(intent)
+        context.checkStopStatusMonitorService()
     }
 }
 class AutoRotationToggleAction : ActionCallback {
@@ -196,41 +268,29 @@ class InternetWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = InternetWidget()
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        val intent = Intent(context, StatusWidgetsMonitorService::class.java)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
+        context.startStatusMonitorService()
+    }
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
     }
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
-        val intent = Intent(context, StatusWidgetsMonitorService::class.java).apply {
-            action = "CHECK_STOP"
-        }
-        context.startService(intent)
+        context.checkStopStatusMonitorService()
     }
 }
 
 class InternetToggleAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork
-        val capabilities = cm.getNetworkCapabilities(network)
-        val hasInternet = capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-        
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-        val lastState = prefs.getBoolean("internet_last_state", false)
-        
-        if (hasInternet != lastState) {
-            prefs.edit().putBoolean("internet_last_state", hasInternet).apply()
-            InternetWidget().update(context, glanceId)
-        } else {
-            val intent = Intent(if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_WIRELESS_SETTINGS).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(intent)
+        val intent = Intent(if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) Settings.Panel.ACTION_INTERNET_CONNECTIVITY else Settings.ACTION_WIRELESS_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
+        context.startActivity(intent)
+        InternetWidget().update(context, glanceId)
     }
 }
 
@@ -240,9 +300,6 @@ class InternetWidget : GlanceAppWidget() {
         val network = cm.activeNetwork
         val capabilities = cm.getNetworkCapabilities(network)
         val hasInternet = capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-        
-        context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
-            .edit().putBoolean("internet_last_state", hasInternet).apply()
         
         provideContent {
             GlanceTheme {
@@ -367,12 +424,18 @@ class HotspotWidgetReceiver : GlanceAppWidgetReceiver() {
 
 class HotspotWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val isHotspotOn = readHotspotEnabled(context)
+
         provideContent {
             GlanceTheme {
                 StatusWidgetLayout(
                     title = "Hotspot",
                     iconText = "📶",
-                    statusText = "Unknown",
+                    statusText = when (isHotspotOn) {
+                        true -> "ON"
+                        false -> "OFF"
+                        null -> "Unknown"
+                    },
                     onClickAction = actionStartActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
                 )
             }
@@ -386,20 +449,21 @@ class TorchWidgetReceiver : GlanceAppWidgetReceiver() {
     
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        val intent = Intent(context, StatusWidgetsMonitorService::class.java)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
+        context.startStatusMonitorService()
+    }
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
     }
     
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
-        val intent = Intent(context, StatusWidgetsMonitorService::class.java).apply {
-            action = "CHECK_STOP"
-        }
-        context.startService(intent)
+        context.checkStopStatusMonitorService()
     }
 }
 class TorchToggleAction : ActionCallback {
@@ -408,24 +472,31 @@ class TorchToggleAction : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+        if (context.checkSelfPermission(android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            context.openAppSettings()
+            return
+        }
+
+        val prefs = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
         val isTorchOn = prefs.getBoolean("torch_state", false)
         val newState = !isTorchOn
         
         try {
             val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val cameraId = cm.cameraIdList.firstOrNull() ?: return
+            val cameraId = cm.findTorchCameraId() ?: return
             cm.setTorchMode(cameraId, newState)
-            // State is updated by the TorchMonitorService to ensure source of truth
+            prefs.edit().putBoolean("torch_state", newState).apply()
+            TorchWidget().updateAll(context)
         } catch (e: Exception) {
-            // Ignore camera access issues
+            android.util.Log.e("TorchWidget", "Unable to toggle torch", e)
         }
     }
 }
 
 class TorchWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val prefs = context.getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+        val hasCameraPermission = context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val prefs = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
         val isTorchOn = prefs.getBoolean("torch_state", false)
         
         provideContent {
@@ -433,7 +504,11 @@ class TorchWidget : GlanceAppWidget() {
                 StatusWidgetLayout(
                     title = "Torch",
                     iconText = "🔦",
-                    statusText = if (isTorchOn) "ON" else "OFF",
+                    statusText = if (hasCameraPermission) {
+                        if (isTorchOn) "ON" else "OFF"
+                    } else {
+                        "Perm Req"
+                    },
                     onClickAction = actionRunCallback<TorchToggleAction>()
                 )
             }

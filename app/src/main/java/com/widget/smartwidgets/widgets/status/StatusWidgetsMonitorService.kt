@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.database.ContentObserver
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.Network
@@ -76,7 +77,7 @@ class StatusWidgetsMonitorService : Service() {
         override fun onTorchModeChanged(id: String, enabled: Boolean) {
             super.onTorchModeChanged(id, enabled)
             if (id == cameraId) {
-                val prefs = getSharedPreferences("widget_prefs", Context.MODE_PRIVATE)
+                val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
                 prefs.edit().putBoolean("torch_state", enabled).apply()
                 scope.launch {
                     try {
@@ -109,7 +110,14 @@ class StatusWidgetsMonitorService : Service() {
         // Torch
         cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
         try {
-            cameraId = cameraManager.cameraIdList.firstOrNull()
+            cameraId = cameraManager.cameraIdList.firstOrNull { id ->
+                try {
+                    cameraManager.getCameraCharacteristics(id)
+                        .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                } catch (_: Exception) {
+                    false
+                }
+            }
             cameraManager.registerTorchCallback(torchCallback, null)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -117,7 +125,7 @@ class StatusWidgetsMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "CHECK_STOP") {
+        if (intent?.action == ACTION_CHECK_STOP) {
             if (shouldStopService()) {
                 stopSelf()
                 return START_NOT_STICKY
@@ -170,6 +178,11 @@ class StatusWidgetsMonitorService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    companion object {
+        private const val ACTION_CHECK_STOP = "CHECK_STOP"
+        private const val WIDGET_PREFS = "widget_prefs"
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
