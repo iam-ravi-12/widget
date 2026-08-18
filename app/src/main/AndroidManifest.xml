@@ -1,10 +1,15 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application
         android:name=".WidgetApplication"
@@ -233,6 +238,139 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/quote_widget_info" />
         </receiver>
+
+        <receiver
+            android:name=".widgets.battery.BatteryBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <!-- Month Calendar -->
+        <receiver android:name=".widgets.calendar.MonthCalendarWidgetReceiver" android:exported="true" android:label="Month Calendar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/month_calendar_widget_info" />
+        </receiver>
+
+        <!-- Today Date -->
+        <receiver android:name=".widgets.calendar.TodayDateWidgetReceiver" android:exported="true" android:label="Today Date">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/today_date_widget_info" />
+        </receiver>
+
+        <!-- Analog Clock A -->
+        <receiver android:name=".widgets.clock.AnalogClockAWidgetReceiver" android:exported="true" android:label="Analog Clock A">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/analog_clock_a_widget_info" />
+        </receiver>
+
+        <!-- Analog Clock B -->
+        <receiver android:name=".widgets.clock.AnalogClockBWidgetReceiver" android:exported="true" android:label="Analog Clock B">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/analog_clock_b_widget_info" />
+        </receiver>
+
+        <!-- Analog Clock C -->
+        <receiver android:name=".widgets.clock.AnalogClockCWidgetReceiver" android:exported="true" android:label="Analog Clock C">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/analog_clock_c_widget_info" />
+        </receiver>
+
+        <!-- Steps -->
+        <receiver android:name=".widgets.health.StepsWidgetReceiver" android:exported="true" android:label="Steps">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/steps_widget_info" />
+        </receiver>
+
+        <!-- Screen Time -->
+        <receiver android:name=".widgets.health.ScreenTimeWidgetReceiver" android:exported="true" android:label="Screen Time">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/screen_time_widget_info" />
+        </receiver>
+
+        <!-- Airplane Mode -->
+        <receiver android:name=".widgets.status.AirplaneModeWidgetReceiver" android:exported="true" android:label="Airplane Mode">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.AIRPLANE_MODE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/airplane_mode_widget_info" />
+        </receiver>
+
+        <!-- Auto Rotation -->
+        <receiver android:name=".widgets.status.AutoRotationWidgetReceiver" android:exported="true" android:label="Auto Rotation">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/auto_rotation_widget_info" />
+        </receiver>
+
+        <!-- Internet -->
+        <receiver android:name=".widgets.status.InternetWidgetReceiver" android:exported="true" android:label="Internet">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/internet_widget_info" />
+        </receiver>
+
+        <!-- Location -->
+        <receiver android:name=".widgets.status.LocationWidgetReceiver" android:exported="true" android:label="Location">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.location.PROVIDERS_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/location_widget_info" />
+        </receiver>
+
+        <!-- Do Not Disturb -->
+        <receiver android:name=".widgets.status.DoNotDisturbWidgetReceiver" android:exported="true" android:label="Do Not Disturb">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.app.action.INTERRUPTION_FILTER_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/dnd_widget_info" />
+        </receiver>
+
+        <!-- Hotspot -->
+        <receiver android:name=".widgets.status.HotspotWidgetReceiver" android:exported="true" android:label="Hotspot">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.net.wifi.WIFI_AP_STATE_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/hotspot_widget_info" />
+        </receiver>
+
+        <!-- Torch -->
+        <receiver android:name=".widgets.status.TorchWidgetReceiver" android:exported="true" android:label="Torch">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/torch_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".widgets.status.StatusWidgetsMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="continuously monitors system status so placed widgets can update instantly" />
+        </service>
 
     </application>
 

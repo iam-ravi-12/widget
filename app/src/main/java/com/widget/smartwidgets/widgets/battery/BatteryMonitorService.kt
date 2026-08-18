@@ -61,7 +61,6 @@ class BatteryMonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
 
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -83,6 +82,17 @@ class BatteryMonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(this)
+        val componentName = android.content.ComponentName(this, BatteryWidgetReceiver::class.java)
+        val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
+
+        if (widgetIds.isEmpty()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        startForeground(NOTIFICATION_ID, buildNotification())
+        isRunning = true
         return START_STICKY
     }
 
@@ -96,6 +106,7 @@ class BatteryMonitorService : Service() {
             receiverRegistered = false
         }
         serviceScope.cancel()
+        isRunning = false
         super.onDestroy()
     }
 
@@ -139,5 +150,8 @@ class BatteryMonitorService : Service() {
         private const val TAG = "BatteryMonitorService"
         private const val CHANNEL_ID = "battery_widget_monitor"
         private const val NOTIFICATION_ID = 4201
+        
+        @Volatile
+        var isRunning = false
     }
 }

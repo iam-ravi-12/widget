@@ -200,7 +200,7 @@ class PomodoroWidget : GlanceAppWidget() {
             GlanceTheme {
                 GlanceWidgetCard(
                     modifier = GlanceModifier,
-                    contentPadding = 8.dp,
+                    contentPadding = 12.dp,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -228,14 +228,14 @@ class PomodoroWidget : GlanceAppWidget() {
                     } else {
                         Text(
                             text = timeString,
-                            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                            style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         )
                     }
                     Text(
                         text = displayState,
                         style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 12.sp)
                     )
-                    Spacer(modifier = GlanceModifier.height(8.dp))
+                    Spacer(modifier = GlanceModifier.height(4.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (state == "idle" || remaining == 0L) {
@@ -267,16 +267,18 @@ class PomodoroWidget : GlanceAppWidget() {
                             )
                         }
                         
-                        Spacer(modifier = GlanceModifier.width(8.dp))
-                        
-                        Button(
-                            text = "Reset",
-                            onClick = actionRunCallback<PomodoroActionCallback>(
-                                actionParametersOf(
-                                    ActionParameters.Key<String>("action") to "reset"
+                        if (state != "idle") {
+                            Spacer(modifier = GlanceModifier.width(8.dp))
+                            
+                            Button(
+                                text = "Reset",
+                                onClick = actionRunCallback<PomodoroActionCallback>(
+                                    actionParametersOf(
+                                        ActionParameters.Key<String>("action") to "reset"
+                                    )
                                 )
                             )
-                        )
+                        }
                     }
                 }
             }

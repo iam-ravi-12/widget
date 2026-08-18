@@ -62,6 +62,7 @@ class BatteryWidgetReceiver : GlanceAppWidgetReceiver() {
 
 object BatteryMonitorServiceController {
     fun start(context: Context) {
+        if (BatteryMonitorService.isRunning) return
         val intent = Intent(context, BatteryMonitorService::class.java)
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -77,6 +78,7 @@ object BatteryMonitorServiceController {
     fun stop(context: Context) {
         try {
             context.stopService(Intent(context, BatteryMonitorService::class.java))
+            BatteryMonitorService.isRunning = false
         } catch (e: Exception) {
             android.util.Log.e("BatteryMonitorService", "Unable to stop battery monitor service", e)
         }

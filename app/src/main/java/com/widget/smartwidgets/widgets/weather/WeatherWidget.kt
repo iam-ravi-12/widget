@@ -158,7 +158,7 @@ fun WeatherWidgetContent(
                         Text(
                             text = emoji,
                             style = TextStyle(
-                                fontSize = 28.sp
+                                fontSize = 24.sp
                             )
                         )
                         Text(
@@ -166,7 +166,7 @@ fun WeatherWidgetContent(
                             style = TextStyle(
                                 color = GlanceTheme.colors.onSurface,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp
+                                fontSize = 18.sp
                             )
                         )
                     }

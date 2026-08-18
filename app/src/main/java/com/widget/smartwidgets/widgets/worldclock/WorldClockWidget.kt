@@ -103,7 +103,10 @@ private fun WorldClockRemoteViews(context: Context, zones: List<String>) {
         }
     }
 
-    AndroidRemoteViews(views)
+    AndroidRemoteViews(
+    remoteViews = views,
+    modifier = GlanceModifier.fillMaxSize()
+)
 }
 
 private fun friendlyZoneName(zoneId: String): String {

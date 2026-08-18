@@ -5,6 +5,6 @@
     android:layout_height="wrap_content"
     android:countDown="true"
     android:textColor="#E2E2E2"
-    android:textSize="36sp"
+    android:textSize="24sp"
     android:textStyle="bold"
     android:format="%s" />

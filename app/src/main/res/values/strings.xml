@@ -41,4 +41,46 @@
     
     <string name="quote_widget_name">Daily Quote</string>
     <string name="quote_widget_description">A new inspiring quote every day</string>
+    
+    <string name="month_calendar_widget_name">Month Calendar</string>
+    <string name="month_calendar_widget_description">Shows the current month calendar</string>
+    
+    <string name="today_date_widget_name">Today Date</string>
+    <string name="today_date_widget_description">Shows today\'s date</string>
+    
+    <string name="analog_clock_a_widget_name">Analog Clock A</string>
+    <string name="analog_clock_a_widget_description">Traditional analog clock</string>
+    
+    <string name="analog_clock_b_widget_name">Analog Clock B</string>
+    <string name="analog_clock_b_widget_description">Modern minimalist analog clock</string>
+    
+    <string name="analog_clock_c_widget_name">Analog Clock C</string>
+    <string name="analog_clock_c_widget_description">Bold analog clock</string>
+    
+    <string name="steps_widget_name">Steps</string>
+    <string name="steps_widget_description">Shows today\'s step count</string>
+    
+    <string name="screen_time_widget_name">Screen Time</string>
+    <string name="screen_time_widget_description">Shows today\'s screen time</string>
+    
+    <string name="airplane_mode_widget_name">Airplane Mode Status</string>
+    <string name="airplane_mode_widget_description">Shows Airplane Mode status</string>
+    
+    <string name="auto_rotation_widget_name">Auto Rotation Status</string>
+    <string name="auto_rotation_widget_description">Shows Auto Rotation status</string>
+    
+    <string name="internet_widget_name">Internet Status</string>
+    <string name="internet_widget_description">Shows Internet connectivity status</string>
+    
+    <string name="location_widget_name">Location Status</string>
+    <string name="location_widget_description">Shows Location service status</string>
+    
+    <string name="dnd_widget_name">Do Not Disturb Status</string>
+    <string name="dnd_widget_description">Shows Do Not Disturb status</string>
+    
+    <string name="hotspot_widget_name">Hotspot Status</string>
+    <string name="hotspot_widget_description">Shows Wi-Fi Hotspot status</string>
+    
+    <string name="torch_widget_name">Torch Status</string>
+    <string name="torch_widget_description">Shows Flashlight status</string>
 </resources>
