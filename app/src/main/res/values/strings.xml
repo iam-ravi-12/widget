@@ -83,4 +83,7 @@
     
     <string name="torch_widget_name">Torch Status</string>
     <string name="torch_widget_description">Shows Flashlight status</string>
+    
+    <string name="screen_time_apps_widget_name">Screen Time — Apps</string>
+    <string name="screen_time_apps_widget_description">Shows today\'s screen time and top used apps</string>
 </resources>

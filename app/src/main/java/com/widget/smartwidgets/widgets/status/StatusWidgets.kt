@@ -79,27 +79,7 @@ private fun Context.openAppSettings() {
     })
 }
 
-private fun readHotspotEnabled(context: Context): Boolean? {
-    val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) ?: return null
 
-    return try {
-        val enabledMethod = wifiManager.javaClass.getDeclaredMethod("isWifiApEnabled")
-        enabledMethod.isAccessible = true
-        enabledMethod.invoke(wifiManager) as? Boolean
-    } catch (_: Exception) {
-        try {
-            val stateMethod = wifiManager.javaClass.getDeclaredMethod("getWifiApState")
-            stateMethod.isAccessible = true
-            when (stateMethod.invoke(wifiManager) as? Int) {
-                WIFI_AP_STATE_ENABLED -> true
-                WIFI_AP_STATE_DISABLED -> false
-                else -> null
-            }
-        } catch (_: Exception) {
-            null
-        }
-    }
-}
 
 private fun CameraManager.findTorchCameraId(): String? {
     return cameraIdList.firstOrNull { id ->
@@ -167,15 +147,37 @@ fun StatusWidgetLayout(
 // 1. Airplane Mode
 class AirplaneModeWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = AirplaneModeWidget()
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == Intent.ACTION_AIRPLANE_MODE_CHANGED) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                glanceAppWidget.updateAll(context)
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        context.startStatusMonitorService()
+    }
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
+    }
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        context.checkStopStatusMonitorService()
+    }
+}
+
+class AirplaneModeToggleAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val intentAirplane = Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+        if (intentAirplane.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intentAirplane)
+        } else {
+            val intentWireless = Intent(Settings.ACTION_WIRELESS_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+            if (intentWireless.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intentWireless)
+            } else {
+                val intentSettings = Intent(Settings.ACTION_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                context.startActivity(intentSettings)
             }
         }
     }
 }
+
 class AirplaneModeWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val isAirplaneMode = Settings.Global.getInt(
@@ -189,7 +191,7 @@ class AirplaneModeWidget : GlanceAppWidget() {
                     title = "Airplane Mode",
                     iconText = "✈️",
                     statusText = if (isAirplaneMode) "ON" else "OFF",
-                    onClickAction = actionStartActivity(Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                    onClickAction = actionRunCallback<AirplaneModeToggleAction>()
                 )
             }
         }
@@ -232,7 +234,6 @@ class AutoRotationToggleAction : ActionCallback {
                 Settings.System.ACCELEROMETER_ROTATION,
                 if (isAutoRotation) 0 else 1
             )
-            AutoRotationWidget().update(context, glanceId)
         } else {
             val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
                 data = android.net.Uri.parse("package:${context.packageName}")
@@ -290,7 +291,6 @@ class InternetToggleAction : ActionCallback {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
-        InternetWidget().update(context, glanceId)
     }
 }
 
@@ -317,15 +317,32 @@ class InternetWidget : GlanceAppWidget() {
 // 4. Location
 class LocationWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = LocationWidget()
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == LocationManager.PROVIDERS_CHANGED_ACTION) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                glanceAppWidget.updateAll(context)
-            }
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        context.startStatusMonitorService()
+    }
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
+    }
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        context.checkStopStatusMonitorService()
+    }
+}
+
+class LocationToggleAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val intentLocation = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+        if (intentLocation.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intentLocation)
+        } else {
+            val intentSettings = Intent(Settings.ACTION_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+            context.startActivity(intentSettings)
         }
     }
 }
+
 class LocationWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -341,7 +358,7 @@ class LocationWidget : GlanceAppWidget() {
                     title = "Location",
                     iconText = "📍",
                     statusText = if (isLocationOn) "ON" else "OFF",
-                    onClickAction = actionStartActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                    onClickAction = actionRunCallback<LocationToggleAction>()
                 )
             }
         }
@@ -351,13 +368,17 @@ class LocationWidget : GlanceAppWidget() {
 // 5. Do Not Disturb
 class DoNotDisturbWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = DoNotDisturbWidget()
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                glanceAppWidget.updateAll(context)
-            }
-        }
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        context.startStatusMonitorService()
+    }
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
+    }
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        context.checkStopStatusMonitorService()
     }
 }
 class DndToggleAction : ActionCallback {
@@ -412,31 +433,41 @@ class DoNotDisturbWidget : GlanceAppWidget() {
 // 6. Hotspot
 class HotspotWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = HotspotWidget()
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == "android.net.wifi.WIFI_AP_STATE_CHANGED") {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                glanceAppWidget.updateAll(context)
-            }
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        context.startStatusMonitorService()
+    }
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        context.startStatusMonitorService()
+    }
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+        context.checkStopStatusMonitorService()
+    }
+}
+
+class HotspotToggleAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        val intentTether = Intent().setClassName("com.android.settings", "com.android.settings.TetherSettings").apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+        if (intentTether.resolveActivity(context.packageManager) != null) {
+            context.startActivity(intentTether)
+        } else {
+            val intentWireless = Intent(Settings.ACTION_WIRELESS_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+            context.startActivity(intentWireless)
         }
     }
 }
 
 class HotspotWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val isHotspotOn = readHotspotEnabled(context)
-
         provideContent {
             GlanceTheme {
                 StatusWidgetLayout(
                     title = "Hotspot",
                     iconText = "📶",
-                    statusText = when (isHotspotOn) {
-                        true -> "ON"
-                        false -> "OFF"
-                        null -> "Unknown"
-                    },
-                    onClickAction = actionStartActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                    statusText = "Tap to manage",
+                    onClickAction = actionRunCallback<HotspotToggleAction>()
                 )
             }
         }
@@ -477,16 +508,13 @@ class TorchToggleAction : ActionCallback {
             return
         }
 
-        val prefs = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        val isTorchOn = prefs.getBoolean("torch_state", false)
-        val newState = !isTorchOn
+        val actualState = StatusWidgetsMonitorService.isTorchOn
+        val newState = !actualState
         
         try {
             val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
             val cameraId = cm.findTorchCameraId() ?: return
             cm.setTorchMode(cameraId, newState)
-            prefs.edit().putBoolean("torch_state", newState).apply()
-            TorchWidget().updateAll(context)
         } catch (e: Exception) {
             android.util.Log.e("TorchWidget", "Unable to toggle torch", e)
         }
@@ -496,8 +524,7 @@ class TorchToggleAction : ActionCallback {
 class TorchWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val hasCameraPermission = context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        val prefs = context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
-        val isTorchOn = prefs.getBoolean("torch_state", false)
+        val isTorchOn = StatusWidgetsMonitorService.isTorchOn
         
         provideContent {
             GlanceTheme {

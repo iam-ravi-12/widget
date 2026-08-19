@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
         android:name=".WidgetApplication"
@@ -252,6 +255,9 @@
         <receiver android:name=".widgets.calendar.MonthCalendarWidgetReceiver" android:exported="true" android:label="Month Calendar">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/month_calendar_widget_info" />
         </receiver>
@@ -304,11 +310,18 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/screen_time_widget_info" />
         </receiver>
 
+        <!-- Screen Time Apps -->
+        <receiver android:name=".widgets.health.ScreenTimeAppsWidgetReceiver" android:exported="true" android:label="@string/screen_time_apps_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/screen_time_apps_widget_info" />
+        </receiver>
+
         <!-- Airplane Mode -->
         <receiver android:name=".widgets.status.AirplaneModeWidgetReceiver" android:exported="true" android:label="Airplane Mode">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.intent.action.AIRPLANE_MODE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/airplane_mode_widget_info" />
         </receiver>
@@ -333,7 +346,6 @@
         <receiver android:name=".widgets.status.LocationWidgetReceiver" android:exported="true" android:label="Location">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.location.PROVIDERS_CHANGED" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/location_widget_info" />
         </receiver>
@@ -342,7 +354,6 @@
         <receiver android:name=".widgets.status.DoNotDisturbWidgetReceiver" android:exported="true" android:label="Do Not Disturb">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.app.action.INTERRUPTION_FILTER_CHANGED" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/dnd_widget_info" />
         </receiver>
@@ -351,7 +362,6 @@
         <receiver android:name=".widgets.status.HotspotWidgetReceiver" android:exported="true" android:label="Hotspot">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.net.wifi.WIFI_AP_STATE_CHANGED" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/hotspot_widget_info" />
         </receiver>
@@ -364,6 +374,75 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/torch_widget_info" />
         </receiver>
 
+        <!-- New Widgets -->
+        <receiver android:name=".widgets.audio.VolumeModeWidgetReceiver" android:exported="true" android:label="Volume Mode">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/volume_mode_widget_info" />
+        </receiver>
+
+        <service android:name=".widgets.media.MediaMonitorService"
+            android:label="Smart Widgets Media Service"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <receiver android:name=".widgets.media.MusicWidgetReceiver" android:exported="true" android:label="Music">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/music_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widgets.media.MusicLargeWidgetReceiver" android:exported="true" android:label="Music Wide">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/music_large_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widgets.bluetooth.BluetoothWidgetReceiver" android:exported="true" android:label="Bluetooth">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/bluetooth_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widgets.battery.BatteryBarWidgetReceiver" android:exported="true" android:label="Battery Bar">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/battery_bar_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widgets.calendar.CalendarDateMonthWidgetReceiver" android:exported="true" android:label="Calendar + Date">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/calendar_date_month_widget_info" />
+        </receiver>
+
+        <receiver android:name=".widgets.calendar.CalendarAnalogMonthWidgetReceiver" android:exported="true" android:label="Calendar + Clock">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/calendar_analog_month_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".widgets.media.MediaPermissionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartWidgets" />
+
+        <activity
+            android:name=".widgets.bluetooth.BluetoothPermissionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.SmartWidgets" />
+
         <service
             android:name=".widgets.status.StatusWidgetsMonitorService"
             android:exported="false"
@@ -371,6 +450,15 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="continuously monitors system status so placed widgets can update instantly" />
+        </service>
+
+        <service
+            android:name=".widgets.health.StepMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="continuously monitors step counter for the Steps widget" />
         </service>
 
     </application>

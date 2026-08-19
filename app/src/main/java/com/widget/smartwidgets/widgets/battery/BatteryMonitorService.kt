@@ -51,6 +51,7 @@ class BatteryMonitorService : Service() {
             serviceScope.launch {
                 try {
                     BatteryWidget().updateAll(applicationContext)
+                    BatteryBarWidget().updateAll(applicationContext)
                 } catch (e: Exception) {
                     android.util.Log.e(TAG, "Failed to update battery widgets", e)
                 }
@@ -75,6 +76,7 @@ class BatteryMonitorService : Service() {
         serviceScope.launch {
             try {
                 BatteryWidget().updateAll(applicationContext)
+                BatteryBarWidget().updateAll(applicationContext)
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Initial battery widget update failed", e)
             }
@@ -83,10 +85,12 @@ class BatteryMonitorService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val appWidgetManager = android.appwidget.AppWidgetManager.getInstance(this)
-        val componentName = android.content.ComponentName(this, BatteryWidgetReceiver::class.java)
-        val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
+        val componentName1 = android.content.ComponentName(this, BatteryWidgetReceiver::class.java)
+        val componentName2 = android.content.ComponentName(this, BatteryBarWidgetReceiver::class.java)
+        val widgetIds1 = appWidgetManager.getAppWidgetIds(componentName1)
+        val widgetIds2 = appWidgetManager.getAppWidgetIds(componentName2)
 
-        if (widgetIds.isEmpty()) {
+        if (widgetIds1.isEmpty() && widgetIds2.isEmpty()) {
             stopSelf()
             return START_NOT_STICKY
         }

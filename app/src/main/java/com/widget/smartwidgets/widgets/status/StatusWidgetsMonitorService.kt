@@ -33,6 +33,26 @@ class StatusWidgetsMonitorService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var cameraId: String? = null
 
+    private val statusReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            scope.launch {
+                try {
+                    when (intent.action) {
+                        Intent.ACTION_AIRPLANE_MODE_CHANGED -> AirplaneModeWidget().updateAll(context)
+                        android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED,
+                        android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED,
+                        android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED -> com.widget.smartwidgets.widgets.bluetooth.BluetoothWidget().updateAll(context)
+                        android.location.LocationManager.PROVIDERS_CHANGED_ACTION -> LocationWidget().updateAll(context)
+                        NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> DoNotDisturbWidget().updateAll(context)
+                        android.media.AudioManager.RINGER_MODE_CHANGED_ACTION -> com.widget.smartwidgets.widgets.audio.VolumeModeWidget().updateAll(context)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
     // 1. Auto Rotation Observer
     private val rotationObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
@@ -49,8 +69,7 @@ class StatusWidgetsMonitorService : Service() {
 
     // 2. Internet Callback
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
-        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-            super.onCapabilitiesChanged(network, networkCapabilities)
+        private fun updateInternetWidget() {
             scope.launch {
                 try {
                     InternetWidget().updateAll(this@StatusWidgetsMonitorService)
@@ -59,16 +78,25 @@ class StatusWidgetsMonitorService : Service() {
                 }
             }
         }
+
+        override fun onAvailable(network: Network) {
+            super.onAvailable(network)
+            updateInternetWidget()
+        }
+
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            super.onCapabilitiesChanged(network, networkCapabilities)
+            updateInternetWidget()
+        }
         
         override fun onLost(network: Network) {
             super.onLost(network)
-            scope.launch {
-                try {
-                    InternetWidget().updateAll(this@StatusWidgetsMonitorService)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
+            updateInternetWidget()
+        }
+
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: android.net.LinkProperties) {
+            super.onLinkPropertiesChanged(network, linkProperties)
+            updateInternetWidget()
         }
     }
 
@@ -77,6 +105,7 @@ class StatusWidgetsMonitorService : Service() {
         override fun onTorchModeChanged(id: String, enabled: Boolean) {
             super.onTorchModeChanged(id, enabled)
             if (id == cameraId) {
+                isTorchOn = enabled
                 val prefs = getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
                 prefs.edit().putBoolean("torch_state", enabled).apply()
                 scope.launch {
@@ -99,6 +128,17 @@ class StatusWidgetsMonitorService : Service() {
             false,
             rotationObserver
         )
+
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+            addAction(android.location.LocationManager.PROVIDERS_CHANGED_ACTION)
+            addAction(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+            addAction(android.media.AudioManager.RINGER_MODE_CHANGED_ACTION)
+        }
+        registerReceiver(statusReceiver, filter)
 
         // Internet
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -159,12 +199,25 @@ class StatusWidgetsMonitorService : Service() {
         val rotationIds = awm.getAppWidgetIds(ComponentName(this, AutoRotationWidgetReceiver::class.java))
         val internetIds = awm.getAppWidgetIds(ComponentName(this, InternetWidgetReceiver::class.java))
         val torchIds = awm.getAppWidgetIds(ComponentName(this, TorchWidgetReceiver::class.java))
-        return rotationIds.isEmpty() && internetIds.isEmpty() && torchIds.isEmpty()
+        val airplaneIds = awm.getAppWidgetIds(ComponentName(this, AirplaneModeWidgetReceiver::class.java))
+        val locationIds = awm.getAppWidgetIds(ComponentName(this, LocationWidgetReceiver::class.java))
+        val dndIds = awm.getAppWidgetIds(ComponentName(this, DoNotDisturbWidgetReceiver::class.java))
+        val hotspotIds = awm.getAppWidgetIds(ComponentName(this, HotspotWidgetReceiver::class.java))
+        val volumeIds = awm.getAppWidgetIds(ComponentName(this, com.widget.smartwidgets.widgets.audio.VolumeModeWidgetReceiver::class.java))
+        val bluetoothIds = awm.getAppWidgetIds(ComponentName(this, com.widget.smartwidgets.widgets.bluetooth.BluetoothWidgetReceiver::class.java))
+        
+        return rotationIds.isEmpty() && internetIds.isEmpty() && torchIds.isEmpty() &&
+               airplaneIds.isEmpty() && locationIds.isEmpty() && dndIds.isEmpty() && hotspotIds.isEmpty() && volumeIds.isEmpty() && bluetoothIds.isEmpty()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         contentResolver.unregisterContentObserver(rotationObserver)
+        try {
+            unregisterReceiver(statusReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         try {
             connectivityManager.unregisterNetworkCallback(networkCallback)
         } catch (e: Exception) {
@@ -182,6 +235,7 @@ class StatusWidgetsMonitorService : Service() {
     companion object {
         private const val ACTION_CHECK_STOP = "CHECK_STOP"
         private const val WIDGET_PREFS = "widget_prefs"
+        var isTorchOn: Boolean = false
     }
 
     private fun createNotificationChannel() {

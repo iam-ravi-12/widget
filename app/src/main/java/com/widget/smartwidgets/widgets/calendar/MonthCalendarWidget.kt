@@ -1,9 +1,12 @@
 package com.widget.smartwidgets.widgets.calendar
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
+import kotlinx.coroutines.launch
+import androidx.glance.appwidget.updateAll
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.appwidget.GlanceAppWidget
@@ -32,6 +35,18 @@ import java.util.Locale
 
 class MonthCalendarWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MonthCalendarWidget()
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        val action = intent.action
+        if (action == Intent.ACTION_DATE_CHANGED || 
+            action == Intent.ACTION_TIMEZONE_CHANGED || 
+            action == Intent.ACTION_TIME_CHANGED) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                glanceAppWidget.updateAll(context)
+            }
+        }
+    }
 }
 
 class MonthCalendarWidget : GlanceAppWidget() {
@@ -46,12 +61,12 @@ class MonthCalendarWidget : GlanceAppWidget() {
         
         val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         
-        val daysOfWeek = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        val daysOfWeek = listOf("M", "T", "W", "T", "F", "S", "S")
 
         provideContent {
             GlanceTheme {
                 GlanceWidgetCard(
-                    contentPadding = 8.dp,
+                    contentPadding = 4.dp,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.Top
                 ) {
@@ -60,34 +75,32 @@ class MonthCalendarWidget : GlanceAppWidget() {
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             textAlign = TextAlign.Center
                         ),
-                        modifier = GlanceModifier.padding(vertical = 4.dp)
+                        modifier = GlanceModifier.padding(vertical = 2.dp)
                     )
-                    Spacer(modifier = GlanceModifier.height(4.dp))
                     
                     Row(modifier = GlanceModifier.fillMaxWidth()) {
-                        for (day in daysOfWeek) {
+                        for ((index, day) in daysOfWeek.withIndex()) {
                             Text(
                                 text = day,
                                 style = TextStyle(
-                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    color = if (index == 6) androidx.glance.color.ColorProvider(day = androidx.compose.ui.graphics.Color.Red, night = androidx.compose.ui.graphics.Color.Red) else GlanceTheme.colors.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = GlanceModifier.defaultWeight()
                             )
                         }
                     }
-                    Spacer(modifier = GlanceModifier.height(4.dp))
                     
                     var currentDay = 1
                     var isFirstRow = true
                     
                     while (currentDay <= daysInMonth) {
-                        Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                        Row(modifier = GlanceModifier.fillMaxWidth().padding(vertical = 1.dp)) {
                             for (i in 0..6) {
                                 if (isFirstRow && i < firstDayOfWeek) {
                                     Box(modifier = GlanceModifier.defaultWeight()) {}
@@ -99,16 +112,16 @@ class MonthCalendarWidget : GlanceAppWidget() {
                                     ) {
                                         Box(
                                             modifier = GlanceModifier
-                                                .size(20.dp)
+                                                .size(16.dp)
                                                 .background(if (isToday) WidgetTheme.accent else androidx.glance.color.ColorProvider(androidx.compose.ui.graphics.Color.Transparent, androidx.compose.ui.graphics.Color.Transparent)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = currentDay.toString(),
                                                 style = TextStyle(
-                                                    color = if (isToday) GlanceTheme.colors.surface else GlanceTheme.colors.onSurface,
+                                                    color = if (isToday) GlanceTheme.colors.surface else if (i == 6) androidx.glance.color.ColorProvider(day = androidx.compose.ui.graphics.Color.Red, night = androidx.compose.ui.graphics.Color.Red) else GlanceTheme.colors.onSurface,
                                                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                                    fontSize = 10.sp,
+                                                    fontSize = 9.sp,
                                                     textAlign = TextAlign.Center
                                                 )
                                             )

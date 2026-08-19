@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +42,14 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import com.widget.smartwidgets.widgets.calendar.CalendarWidget
 import kotlinx.coroutines.launch
 import com.widget.smartwidgets.ui.widgetpreview.*
+import com.widget.smartwidgets.utils.UsageAccessUtil
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.widget.smartwidgets.widgets.health.ScreenTimeWidget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +59,37 @@ fun HomeScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     
+    var hasActivityRecognitionPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACTIVITY_RECOGNITION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val activityRecognitionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasActivityRecognitionPermission = isGranted
+        if (isGranted) {
+            val intent = Intent(context, com.widget.smartwidgets.widgets.health.StepMonitorService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+            coroutineScope.launch {
+                val manager = GlanceAppWidgetManager(context)
+                val ids = manager.getGlanceIds(com.widget.smartwidgets.widgets.health.StepsWidget::class.java)
+                val widget = com.widget.smartwidgets.widgets.health.StepsWidget()
+                ids.forEach { id ->
+                    widget.update(context, id)
+                }
+            }
+        }
+    }
+
     var hasCalendarPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -57,6 +97,36 @@ fun HomeScreen(
                 Manifest.permission.READ_CALENDAR
             ) == PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    var hasUsageAccessPermission by remember {
+        mutableStateOf(UsageAccessUtil.hasUsageStatsPermission(context))
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val currentPermission = UsageAccessUtil.hasUsageStatsPermission(context)
+                if (currentPermission != hasUsageAccessPermission) {
+                    hasUsageAccessPermission = currentPermission
+                    if (currentPermission) {
+                        coroutineScope.launch {
+                            val manager = GlanceAppWidgetManager(context)
+                            val ids = manager.getGlanceIds(ScreenTimeWidget::class.java)
+                            val widget = ScreenTimeWidget()
+                            ids.forEach { id ->
+                                widget.update(context, id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -155,8 +225,86 @@ fun HomeScreen(
 
             // CATEGORY: Lifestyle
             CategoryHeader("Lifestyle")
-            WidgetCard("Daily Quote", "Inspiring daily quotes.", "\uD83D\uDCD6", "None") { QuoteWidgetPreview() }
-            WidgetCard("Photo Frame", "Display a favorite photo.", "\uD83D\uDDBC\uFE0F", "None") { PhotoFrameWidgetPreview() }
+            
+            Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("👟", fontSize = 32.sp, modifier = Modifier.padding(end = 16.dp, top = 4.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Steps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Track your daily steps.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Activity Recognition: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                Text(if (hasActivityRecognitionPermission) "Granted" else "Not granted", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = if (hasActivityRecognitionPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (!hasActivityRecognitionPermission) {
+                        Button(onClick = { 
+                            activityRecognitionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                        }, modifier = Modifier.fillMaxWidth()) { 
+                            Text("Enable") 
+                        }
+                    } else {
+                        Button(onClick = { 
+                            val intent = Intent(context, com.widget.smartwidgets.widgets.health.StepsWidgetReceiver::class.java).apply {
+                                action = "com.widget.smartwidgets.ACTION_REFRESH_STEPS"
+                            }
+                            context.sendBroadcast(intent)
+                        }, modifier = Modifier.fillMaxWidth()) { 
+                            Text("Refresh") 
+                        }
+                    }
+                }
+            }
+
+            Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text("📱", fontSize = 32.sp, modifier = Modifier.padding(end = 16.dp, top = 4.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Screen Time", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("Track daily app usage.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Usage Access: ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                                Text(if (hasUsageAccessPermission) "Granted" else "Not granted", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = if (hasUsageAccessPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (!hasUsageAccessPermission) {
+                        Button(onClick = { 
+                            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            if (intent.resolveActivity(context.packageManager) != null) {
+                                context.startActivity(intent)
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { 
+                            Text("Enable Usage Access") 
+                        }
+                    } else {
+                        Button(onClick = { 
+                            coroutineScope.launch {
+                                val manager = GlanceAppWidgetManager(context)
+                                val ids = manager.getGlanceIds(ScreenTimeWidget::class.java)
+                                val widget = ScreenTimeWidget()
+                                ids.forEach { id ->
+                                    widget.update(context, id)
+                                }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { 
+                            Text("Refresh") 
+                        }
+                    }
+                }
+            }
+
+            WidgetCard("Daily Quote", "Inspiring daily quotes.", "📖", "None") { QuoteWidgetPreview() }
+            WidgetCard("Photo Frame", "Display a favorite photo.", "🖼️", "None") { PhotoFrameWidgetPreview() }
 
             Spacer(modifier = Modifier.height(32.dp))
         }
