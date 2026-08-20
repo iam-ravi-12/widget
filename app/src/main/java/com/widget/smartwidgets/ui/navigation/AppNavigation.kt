@@ -16,6 +16,8 @@ import com.widget.smartwidgets.ui.screens.countdown.CountdownConfigScreen
 import com.widget.smartwidgets.ui.screens.photoframe.PhotoFrameConfigScreen
 import com.widget.smartwidgets.ui.screens.todo.TodoScreen
 
+import com.widget.smartwidgets.ui.screens.permissions.PermissionsScreen
+
 @Composable
 fun AppNavigation(
     navController: NavHostController,
@@ -24,7 +26,14 @@ fun AppNavigation(
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
-                onNavigateToNotes = { navController.navigate("notes") }
+                onNavigateToNotes = { navController.navigate("notes") },
+                onNavigateToPermissions = { navController.navigate("permissions") }
+            )
+        }
+
+        composable("permissions") {
+            PermissionsScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
@@ -120,6 +129,9 @@ fun AppNavigation(
                 intent.data = null
             } else if (uri.host == "todo") {
                 navController.navigate("todo")
+                intent.data = null
+            } else if (uri.host == "permissions") {
+                navController.navigate("permissions")
                 intent.data = null
             }
         }

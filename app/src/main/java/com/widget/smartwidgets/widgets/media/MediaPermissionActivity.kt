@@ -17,6 +17,14 @@ class MediaPermissionActivity : ComponentActivity() {
         updateWidgetsAndFinish()
     }
 
+    override fun onResume() {
+        super.onResume()
+        val hasPermission = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
+        if (hasPermission) {
+            updateWidgetsAndFinish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -37,6 +45,16 @@ class MediaPermissionActivity : ComponentActivity() {
     }
 
     private fun updateWidgetsAndFinish() {
+        val hasPermission = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
+        if (hasPermission) {
+            try {
+                android.service.notification.NotificationListenerService.requestRebind(
+                    android.content.ComponentName(this, MediaMonitorService::class.java)
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 MusicWidget().updateAll(applicationContext)
